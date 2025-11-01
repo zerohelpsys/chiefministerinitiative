@@ -1,0 +1,232 @@
+/* ==========================================
+   GLOBAL RESET & BASE STYLES
+   Author: ChatGPT (GPT-5)
+   ========================================== */
+
+/* Reset and normalize defaults */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* Smooth, consistent scroll behavior */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Base typography scaling */
+:root {
+  /* Typography scale */
+  --font-sans: 'Inter', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+  --font-serif: 'Merriweather', Georgia, serif;
+  --font-mono: 'Fira Code', 'Courier New', monospace;
+
+  /* Colors */
+  --color-bg: #ffffff;
+  --color-text: #1a1a1a;
+  --color-accent: #0077ff;
+  --color-muted: #666666;
+  --color-border: #e0e0e0;
+
+  /* Dark mode */
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --color-bg: #0d1117;
+      --color-text: #f0f6fc;
+      --color-accent: #58a6ff;
+      --color-muted: #8b949e;
+      --color-border: #30363d;
+    }
+  }
+
+  /* Sizing */
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+/* Body styling */
+body {
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  color: var(--color-text);
+  background-color: var(--color-bg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  min-height: 100vh;
+}
+
+/* Links */
+a {
+  color: var(--color-accent);
+  text-decoration: none;
+  transition: color 0.2s ease, text-decoration 0.2s ease;
+}
+a:hover,
+a:focus {
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 700;
+  line-height: 1.25;
+  margin-block: 1em 0.5em;
+  color: var(--color-text);
+}
+h1 { font-size: 2.25rem; }
+h2 { font-size: 1.875rem; text-align: center;} 
+h3 { font-size: 1.5rem; }
+h4 { font-size: 1.25rem; }
+h5 { font-size: 1.125rem; }
+h6 { font-size: 1rem; }
+
+/* Paragraphs and text */
+p {
+  margin-block: 0.75em;
+  color: var(--color-text);
+}
+strong {
+  font-weight: 600;
+}
+em {
+  font-style: italic;
+}
+
+/* Lists */
+ul, ol {
+  margin-left: 2em;
+  margin-block: 1em;
+}
+li {
+  margin-block: 0.25em;
+}
+
+/* Blockquotes */
+blockquote {
+  border-left: 4px solid var(--color-border);
+  padding-left: 1em;
+  color: var(--color-muted);
+  font-style: italic;
+}
+
+/* Code */
+code, pre {
+  font-family: var(--font-mono);
+  background: rgba(0, 0, 0, 0.05);
+  color: #d63384;
+  border-radius: 4px;
+}
+pre {
+  padding: 1em;
+  overflow-x: auto;
+}
+pre code {
+  background: none;
+}
+
+/* Tables */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-block: 1em;
+}
+th, td {
+  border: 1px solid var(--color-border);
+  padding: 0.5em 0.75em;
+  text-align: left;
+}
+th {
+  background-color: rgba(0, 0, 0, 0.05);
+  font-weight: 600;
+}
+
+/* Forms */
+input, textarea, select, button {
+  font-family: inherit;
+  font-size: 1rem;
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 0.5em 0.75em;
+  background-color: var(--color-bg);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(0, 119, 255, 0.2);
+}
+button {
+  cursor: pointer;
+  background-color: var(--color-accent);
+  color: #fff;
+  border: none;
+  font-weight: 600;
+}
+button:hover {
+  background-color: #005fcc;
+}
+
+/* Images and media */
+img, video {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Figures and captions */
+figure {
+  margin: 1.5em 0;
+  text-align: center;
+}
+figcaption {
+  font-size: 0.9rem;
+  color: var(--color-muted);
+}
+
+/* Horizontal rule */
+hr {
+  border: none;
+  border-top: 1px solid var(--color-border);
+  margin-block: 2em;
+}
+
+/* Details and summary */
+details {
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 0.75em 1em;
+  margin-block: 1em;
+}
+summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+/* Footer and header defaults */
+header, footer {
+  padding: 1.5em 1em;
+  background-color: rgba(0, 0, 0, 0.03);
+}
+
+/* Utility classes */
+.hidden {
+  display: none !important;
+}
+.center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.text-center {
+  text-align: center;
+}
+.container {
+  max-width: 1200px;
+  margin-inline: auto;
+  padding-inline: 1em;
+}
