@@ -78,7 +78,8 @@
         <span class="sep"></span>
         <button type="button" id="btnDownloadHTML">Download HTML</button>
         <button type="button" id="btnDownloadExcel">Download Excel</button>
-        <button type="button" id="btnDownloadPPT">Download PPT</button>
+        <button type="button" id="btnCopyForPPT">Copy for PPT</button>
+        <button type="button" id="btnSlidesPDF">Slides PDF</button>
         <span class="sep"></span>
         <button type="button" id="btnSaveNow">Save to browser</button>
         <button type="button" id="btnLoadSaved">Restore saved</button>
@@ -109,9 +110,11 @@
     document.getElementById('btnDeleteCell').addEventListener('click', () => { deleteSelectedCells(); scheduleAutoSave(); });
     document.getElementById('btnDeleteCol').addEventListener('click', () => { deleteSelectedColumns(); scheduleAutoSave(); });
     document.getElementById('btnAddTable').addEventListener('click', () => { addNewTable(); scheduleAutoSave(); });
+
     document.getElementById('btnDownloadHTML').addEventListener('click', downloadHTML);
     document.getElementById('btnDownloadExcel').addEventListener('click', downloadExcel);
-    document.getElementById('btnDownloadPPT').addEventListener('click', downloadPPT);
+    document.getElementById('btnCopyForPPT').addEventListener('click', copyAllTablesForPPT);
+    document.getElementById('btnSlidesPDF').addEventListener('click', openSlidesPDFWindow);
 
     document.getElementById('btnSaveNow').addEventListener('click', persistToLocalStorage);
     document.getElementById('btnLoadSaved').addEventListener('click', restoreFromLocalStorage);
@@ -199,7 +202,7 @@
     });
   }
 
-  // Click-based selection (works with typing)
+  // Click selection
   function attachCellSelectionHandlers() {
     document.addEventListener('click', (e) => {
       if (ignoreNextClick) { ignoreNextClick = false; return; }
@@ -493,7 +496,7 @@
   function removeColumnsFromTable(table, colsSet) {
     const map = buildCellMap(table);
     const toUpdate = [];
-       const toRemove = [];
+    const toRemove = [];
 
     map.info.forEach((meta, cell) => {
       const start = meta.col;
@@ -654,125 +657,114 @@ ${tables.join('<br><br>')}
     downloadBlob(excelHTML, 'tables.xls', 'application/vnd.ms-excel');
   }
 
-  // -------- PPTX EXPORT --------
+  // ---------- Zero-dependency PPT alternatives ----------
 
-  async function downloadPPT() {
-    try {
-      const PptxGenJS = await loadPptxLibrary();
-      const pptx = new PptxGenJS();
-      pptx.layout = 'LAYOUT_16x9';
-
-      const pageW = 13.33; // inches for 16x9
-      const marginX = 0.5;
-      const startYTitle = 0.4;
-      const startYTable = 1.0;
-      const usableW = pageW - marginX * 2;
-
-      const tables = Array.from(document.querySelectorAll('#cm-content-root table'));
-      if (tables.length === 0) {
-        alert('No tables found to export.');
-        return;
-      }
-
-      tables.forEach((table, idx) => {
-        const map = buildCellMap(table);
-        const { dataRows, skipTitle } = convertTableToPptData(table, map);
-
-        const slide = pptx.addSlide();
-        const title = deriveTableTitle(table, map, idx + 1);
-        slide.addText(title, {
-          x: marginX,
-          y: startYTitle,
-          w: usableW,
-          fontFace: 'Times New Roman',
-          fontSize: 20,
-          bold: true,
-          color: '0d6efd'
-        });
-
-        // Compute column widths (inches) based on DOM widths
-        const colW = computeColumnWidthsInches(table, map, usableW);
-
-        // Table styling
-        const tableOpts = {
-          x: marginX,
-          y: startYTable,
-          w: usableW,
-          colW,
-          border: { pt: 1, color: '666666' },
-          fontFace: 'Times New Roman',
-          fontSize: 12,
-          valign: 'middle',
-          autoPage: true,               // auto split long tables
-          autoPageRepeatHeader: true,   // repeat header rows
-          autoPageLines: 1
-        };
-
-        slide.addTable(dataRows, tableOpts);
-      });
-
-      await pptx.writeFile({ fileName: 'tables.pptx' });
-    } catch (err) {
-      console.error('PPT export failed:', err);
-      alert('Could not generate PPT. If you are offline, please connect to the internet (to load the PPT library) or vendor it locally.');
-    }
-  }
-
-  function convertTableToPptData(table, map) {
-    const rowsOut = [];
-    const headerFill = 'e7f0ff';
-    const zebraFill = 'f9fbff';
-    const headerRowsIdx = getHeaderRowIndices(table); // which rows are header-ish
-    const titleRowIdx = detectTitleRowIndex(table, map); // a big spanning title row, if present
-    const skipTitle = titleRowIdx === 0; // if first row is a title row, skip it inside table and use slide title
-
-    for (let r = 0; r < map.rows; r++) {
-      if (skipTitle && r === 0) continue;
-
-      const rowCells = [];
-      for (let c = 0; c < map.cols; c++) {
-        const cell = map.matrix[r][c];
-        if (!cell) continue;
-        const info = map.info.get(cell);
-        // If this position is covered by a span from another anchor, skip it
-        if (info.row !== r || info.col !== c) continue;
-
-        const text = getCellText(cell);
-        const isHeader = cell.tagName.toLowerCase() === 'th' || headerRowsIdx.has(r);
-
-        const opts = {
-          fontFace: 'Times New Roman',
-          fontSize: 12,
-          color: isHeader ? 'FFFFFF' : '000000',
-          bold: isHeader ? true : false,
-          align: isHeader ? 'center' : 'left',
-          valign: 'middle',
-          fill: isHeader ? '0d6efd' : ((r % 2 === 1) ? zebraFill : 'FFFFFF'),
-          border: [{ color: '666666', pt: 1 }]
-        };
-
-        if (info.colSpan > 1) opts.colSpan = info.colSpan;
-        if (info.rowSpan > 1) opts.rowSpan = info.rowSpan;
-
-        rowCells.push({ text, options: opts });
-      }
-      rowsOut.push(rowCells);
-    }
-
-    return { dataRows: rowsOut, skipTitle };
-  }
-
-  function getHeaderRowIndices(table) {
-    const set = new Set();
-    Array.from(table.rows).forEach((tr, idx) => {
-      const hasTh = Array.from(tr.cells).some(td => td.tagName.toLowerCase() === 'th');
-      if (hasTh) set.add(idx);
+  // 1) Copy all tables as HTML for direct paste into PowerPoint (retains merges)
+  async function copyAllTablesForPPT() {
+    const blocks = [];
+    const tables = Array.from(document.querySelectorAll('#cm-content-root table'));
+    if (!tables.length) return alert('No tables found.');
+    tables.forEach((t, i) => {
+      const map = buildCellMap(t);
+      const title = deriveTableTitle(t, map, i + 1);
+      const clone = sanitizeTableClone(t);
+      blocks.push(`
+        <div class="slide">
+          <h2>${escapeHTML(title)}</h2>
+          ${clone.outerHTML}
+        </div>
+      `);
     });
-    return set;
+
+    const html = `
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>
+  body { font-family: "Times New Roman", Times, serif; }
+  .slide { margin: 0 0 24px 0; }
+  h2 { margin: 0 0 8px 0; color: #0d6efd; font-size: 20pt; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border: 1px solid #444; padding: 6px; vertical-align: middle; }
+</style>
+</head><body>${blocks.join('\n')}</body></html>`.trim();
+
+    try {
+      if (navigator.clipboard && window.ClipboardItem) {
+        const blob = new Blob([html], { type: 'text/html' });
+        await navigator.clipboard.write([new ClipboardItem({ 'text/html': blob })]);
+        alert('Copied! Open PowerPoint and Paste to insert your tables.');
+      } else {
+        legacyCopyHTML(html);
+        alert('Copied! Open PowerPoint and Paste to insert your tables.');
+      }
+    } catch (e) {
+      console.error('Clipboard write failed:', e);
+      legacyCopyHTML(html);
+      alert('Copied with fallback. If paste fails, try a Chromium-based browser.');
+    }
   }
 
+  function legacyCopyHTML(html) {
+    const div = document.createElement('div');
+    div.style.position = 'fixed';
+    div.style.opacity = '0';
+    div.setAttribute('contenteditable', 'true');
+    div.innerHTML = html;
+    document.body.appendChild(div);
+    const range = document.createRange();
+    range.selectNodeContents(div);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    document.execCommand('copy');
+    div.remove();
+  }
+
+  function sanitizeTableClone(t) {
+    const clone = t.cloneNode(true);
+    clone.querySelectorAll('.cm-selected').forEach(el => el.classList.remove('cm-selected'));
+    clone.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
+    return clone;
+  }
+
+  function escapeHTML(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // 2) Print-friendly "Slides PDF" (one table per page). Save as PDF, then PowerPoint: Insert → Slides from PDF.
+  function openSlidesPDFWindow() {
+    const tables = Array.from(document.querySelectorAll('#cm-content-root table'));
+    if (!tables.length) return alert('No tables found.');
+
+    const win = window.open('', '_blank');
+    const parts = [];
+    parts.push('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Slides PDF</title>');
+    parts.push('<style>');
+    parts.push('@page { size: 13.33in 7.5in; margin: 0.5in; }');
+    parts.push('body { font-family: "Times New Roman", Times, serif; }');
+    parts.push('.slide { page-break-after: always; width: 12.33in; }');
+    parts.push('h2 { margin: 0 0 10px 0; color: #0d6efd; font-size: 22pt; }');
+    parts.push('table { border-collapse: collapse; width: 100%; }');
+    parts.push('th, td { border: 1px solid #444; padding: 6px; vertical-align: middle; }');
+    parts.push('</style></head><body>');
+
+    tables.forEach((t, i) => {
+      const map = buildCellMap(t);
+      const title = deriveTableTitle(t, map, i + 1);
+      const clone = sanitizeTableClone(t);
+      parts.push(`<div class="slide"><h2>${escapeHTML(title)}</h2>${clone.outerHTML}</div>`);
+    });
+
+    parts.push('<script>window.onload=function(){setTimeout(function(){window.print()},300)}<\/script>');
+    parts.push('</body></html>');
+
+    win.document.open();
+    win.document.write(parts.join('\n'));
+    win.document.close();
+  }
+
+  // Helpers for titles
   function detectTitleRowIndex(table, map) {
-    // Heuristic: a first row with a single cell spanning all columns, containing a heading element (h1-h4)
     if (map.rows === 0) return -1;
     const row0 = table.rows[0];
     if (!row0 || row0.cells.length !== 1) return -1;
@@ -784,11 +776,9 @@ ${tables.join('<br><br>')}
 
   function deriveTableTitle(table, map, defaultIndex) {
     const idxLabel = `Table ${defaultIndex}`;
-    // 1) Prefer caption
     const cap = table.querySelector('caption');
     if (cap) return cap.innerText.trim() || idxLabel;
 
-    // 2) If first row is a spanning heading row
     if (map.rows > 0) {
       const r0 = table.rows[0];
       if (r0 && r0.cells.length === 1) {
@@ -802,7 +792,6 @@ ${tables.join('<br><br>')}
       }
     }
 
-    // 3) Try previous sibling heading near the table
     let prev = table.previousElementSibling;
     let hops = 0;
     while (prev && hops < 3) {
@@ -816,76 +805,7 @@ ${tables.join('<br><br>')}
     return idxLabel;
   }
 
-  function getCellText(cell) {
-    // Preserve line breaks
-    return (cell.innerText || '').replace(/\r\n/g, '\n').replace(/\n{2,}/g, '\n').trim();
-  }
-
-  function computeColumnWidthsInches(table, map, targetTotalInches) {
-    const pxPerInch = 96;
-    const cols = map.cols;
-    const colPx = new Array(cols).fill(40); // default min px
-
-    // Collect widths from DOM; divide merged cell width by its colSpan
-    for (let r = 0; r < map.rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        const cell = map.matrix[r][c];
-        if (!cell) continue;
-        const info = map.info.get(cell);
-        if (info.row !== r || info.col !== c) continue; // skip covered positions
-
-        let w = cell.getBoundingClientRect().width;
-        if (!w || w < 10) {
-          // fallback: estimate by text length
-          const ch = (cell.innerText || '').trim().length;
-          w = Math.max(40, Math.min(400, 7 * ch + 20));
-        }
-        const per = w / info.colSpan;
-        for (let k = 0; k < info.colSpan; k++) {
-          const ci = info.col + k;
-          colPx[ci] = Math.max(colPx[ci], per);
-        }
-      }
-    }
-
-    // Scale to target width in inches
-    const totalPx = colPx.reduce((a, b) => a + b, 0) || cols * 60;
-    const scale = (targetTotalInches * pxPerInch) / totalPx;
-    const colIn = colPx.map(px => Math.max(0.5, px * scale / pxPerInch)); // ensure min 0.5"
-    const sumIn = colIn.reduce((a, b) => a + b, 0);
-    const adjust = targetTotalInches / sumIn;
-    return colIn.map(v => v * adjust);
-  }
-
-  async function loadPptxLibrary() {
-    if (window.PptxGenJS) return window.PptxGenJS;
-    const urls = [
-      'https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js',
-      'https://unpkg.com/pptxgenjs/dist/pptxgen.bundle.js'
-    ];
-    for (const src of urls) {
-      try {
-        await injectScript(src);
-        if (window.PptxGenJS) return window.PptxGenJS;
-      } catch (e) {
-        // try next
-      }
-    }
-    throw new Error('PptxGenJS could not be loaded from CDN.');
-  }
-
-  function injectScript(src) {
-    return new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = src;
-      s.async = true;
-      s.onload = () => resolve();
-      s.onerror = () => reject(new Error('Failed to load: ' + src));
-      document.head.appendChild(s);
-    });
-  }
-
-  // -------- Utilities --------
+  // ---------- Utilities ----------
 
   function downloadBlob(content, filename, type) {
     const blob = new Blob([content], { type });
